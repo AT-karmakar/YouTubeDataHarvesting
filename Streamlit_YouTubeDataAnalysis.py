@@ -14,7 +14,7 @@ from PIL import Image
 with psycopg2.connect(
     dbname="YouTube",
     user="postgres",
-    password="dinhata",
+    password="PASSWORD",
     host="localhost",
     port="5432"
 ) as conn:
@@ -22,12 +22,12 @@ with psycopg2.connect(
         # Database operations using `cur` here
 
 # Establish a connection to MongoDB
-        client = MongoClient("mongodb://localhost:27017")
+        client = MongoClient("your_local_host_number")
         db = client["MyProjects_1"]
         collection = db["Youtube_dataharvesting"]
 
         # YouTube API setup
-        api_key = "AIzaSyBInyOLc1UjNjVN9T8zuWQiAozbSy193cg"
+        api_key = "your_apikey"
         api_service_name = "youtube"
         api_version = "v3"
         youtube = build(api_service_name, api_version, developerKey=api_key)
