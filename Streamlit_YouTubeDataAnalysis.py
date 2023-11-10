@@ -32,56 +32,37 @@ with psycopg2.connect(
         api_version = "v3"
         youtube = build(api_service_name, api_version, developerKey=api_key)
 
-# Define a function to get the video comments, for future call in main function
-def get_video_comments(video_id):
-    # Fetch comments for a video using commentThreads().list() API endpoint
-    comments = youtube.commentThreads().list(
-        part="snippet",
-        videoId=video_id,
-        textFormat="plainText"
-    ).execute()
+# Define a main function which uses all the previous defined funcitons and gives us a consolidated result of a channels data
+def get_channel_and_videos(channel_id):
+    # Fetch channel details using channels().list() API endpoint
+    try:
+        channel_response = youtube.channels().list(
+            part="snippet,contentDetails,statistics,status",
+            id=channel_id
+        ).execute()
 
-    comment_data = {}
-    for comment in comments["items"]:
-        comment_id = comment["id"]
-        comment_text = comment["snippet"]["topLevelComment"]["snippet"]["textDisplay"]
-        comment_author = comment["snippet"]["topLevelComment"]["snippet"]["authorDisplayName"]
-        comment_published_at = comment["snippet"]["topLevelComment"]["snippet"]["publishedAt"]
-
-        comment_data[comment_id] = {
-            "Comment_Id": comment_id,
-            "Comment_Text": comment_text,
-            "Comment_Author": comment_author,
-            "Comment_PublishedAt": comment_published_at
+        channel_info = channel_response['items'][0]['snippet']
+        channel_status = channel_response['items'][0]['status']
+        channel_data = {
+            "Channel_Name": channel_info['title'],
+            "Channel_Id": channel_id,
+            "Subscription_Count": channel_response['items'][0]['statistics']['subscriberCount'],
+            "Channel_Views": channel_response['items'][0]['statistics']['viewCount'],
+            "Channel_Description": channel_info['description'],
+            "Total_Videos" :channel_response['items'][0]['statistics']["videoCount"],
+            "Playlist_Id": channel_response['items'][0]['contentDetails']['relatedPlaylists']['uploads'],
+            "Channel_Type": channel_status.get('privacyStatus', 'Not available'), 
+            "Channel_Status": channel_status.get('longUploadsStatus', 'Not available'),  
+            "Country": channel_info.get('country', 'Not available')
         }
 
-    return comment_data
-
-
-# Define a function for getting video statistics, for future call in main func
-def get_video_statistics(video_id):
-    # Fetch detailed video statistics using videos().list() API endpoint
-    video_response = youtube.videos().list(
-        part="statistics,contentDetails",
-        id=video_id
-    ).execute()
-
-    if video_response['items']:
-        statistics = video_response['items'][0]['statistics']
-        view_count = int(statistics.get('viewCount', 0))
-        like_count = int(statistics.get('likeCount', 0))
-        dislike_count = int(statistics.get('dislikeCount', 0))
-        favorite_count = int(statistics.get('favoriteCount', 0))
-        comment_count = int(statistics.get('commentCount', 0))
-        content_details = video_response['items'][0]['contentDetails']
-        duration = content_details.get('duration', '') 
-
-    else:
-        # Set default values if no statistics available
-        view_count, like_count, dislike_count, favorite_count, comment_count,duration = 0, 0, 0, 0, 0,''
-
-    return view_count, like_count, dislike_count, favorite_count, comment_count, duration
-
+        videos_data = get_all_videos(channel_data)
+        
+    
+        return channel_data, videos_data
+    except Exception as e:
+        st.error(f"An error occurred: {e}")
+        return None, None
 
 # Define a function to get all the videos data of a channel which calls the upper two defined functions
 def get_all_videos(channel_data):
@@ -140,38 +121,55 @@ def get_all_videos(channel_data):
 
     return videos_data
 
+# Define a function for getting video statistics, for future call in main func
+def get_video_statistics(video_id):
+    # Fetch detailed video statistics using videos().list() API endpoint
+    video_response = youtube.videos().list(
+        part="statistics,contentDetails",
+        id=video_id
+    ).execute()
 
-# Define a main function which uses all the previous defined funcitons and gives us a consolidated result of a channels data
-def get_channel_and_videos(channel_id):
-    # Fetch channel details using channels().list() API endpoint
-    try:
-        channel_response = youtube.channels().list(
-            part="snippet,contentDetails,statistics,status",
-            id=channel_id
-        ).execute()
+    if video_response['items']:
+        statistics = video_response['items'][0]['statistics']
+        view_count = int(statistics.get('viewCount', 0))
+        like_count = int(statistics.get('likeCount', 0))
+        dislike_count = int(statistics.get('dislikeCount', 0))
+        favorite_count = int(statistics.get('favoriteCount', 0))
+        comment_count = int(statistics.get('commentCount', 0))
+        content_details = video_response['items'][0]['contentDetails']
+        duration = content_details.get('duration', '') 
 
-        channel_info = channel_response['items'][0]['snippet']
-        channel_status = channel_response['items'][0]['status']
-        channel_data = {
-            "Channel_Name": channel_info['title'],
-            "Channel_Id": channel_id,
-            "Subscription_Count": channel_response['items'][0]['statistics']['subscriberCount'],
-            "Channel_Views": channel_response['items'][0]['statistics']['viewCount'],
-            "Channel_Description": channel_info['description'],
-            "Total_Videos" :channel_response['items'][0]['statistics']["videoCount"],
-            "Playlist_Id": channel_response['items'][0]['contentDetails']['relatedPlaylists']['uploads'],
-            "Channel_Type": channel_status.get('privacyStatus', 'Not available'), 
-            "Channel_Status": channel_status.get('longUploadsStatus', 'Not available'),  
-            "Country": channel_info.get('country', 'Not available')
+    else:
+        # Set default values if no statistics available
+        view_count, like_count, dislike_count, favorite_count, comment_count,duration = 0, 0, 0, 0, 0,''
+
+    return view_count, like_count, dislike_count, favorite_count, comment_count, duration
+
+
+# Define a function to get the video comments, for future call in main function
+def get_video_comments(video_id):
+    # Fetch comments for a video using commentThreads().list() API endpoint
+    comments = youtube.commentThreads().list(
+        part="snippet",
+        videoId=video_id,
+        textFormat="plainText"
+    ).execute()
+
+    comment_data = {}
+    for comment in comments["items"]:
+        comment_id = comment["id"]
+        comment_text = comment["snippet"]["topLevelComment"]["snippet"]["textDisplay"]
+        comment_author = comment["snippet"]["topLevelComment"]["snippet"]["authorDisplayName"]
+        comment_published_at = comment["snippet"]["topLevelComment"]["snippet"]["publishedAt"]
+
+        comment_data[comment_id] = {
+            "Comment_Id": comment_id,
+            "Comment_Text": comment_text,
+            "Comment_Author": comment_author,
+            "Comment_PublishedAt": comment_published_at
         }
 
-        videos_data = get_all_videos(channel_data)
-        
-    
-        return channel_data, videos_data
-    except Exception as e:
-        st.error(f"An error occurred: {e}")
-        return None, None
+    return comment_data
 
 # Define a function to insert the retreived data into MongoDB 
 def insert_to_mongodb(channel_data,videos_data):
